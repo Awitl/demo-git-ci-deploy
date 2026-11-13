@@ -1,0 +1,51 @@
+name: CI & Deploy to VM
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ci-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build Docker image for test
+        run: docker build -t demo-app:test .
+
+  deploy:
+    needs: ci-check
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH to VM
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          script: |
+            cd /data/demo-app
+            git pull origin main
+            docker stop demo-app || true
+            docker rm demo-app || true
+            docker build -t demo-app:latest .
+            docker run -d \
+              --name demo-app \
+              -p 5000:5000 \
+              -e APP_NAME="MyDemo" \
+              -e SECRET_MSG="${{ secrets.APP_SECRET_MSG }}" \
+              demo-app:latest

@@ -10,6 +10,7 @@ def index():
     return f"""
     <h1>Hello {APP_NAME}</h1>
     <p>Secret: {SECRET_MSG}</p>
+    <p>New feature tip: this is from feature branch!</p>
     """
 
 if __name__ == "__main__":
